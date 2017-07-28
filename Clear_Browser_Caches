@@ -1,5 +1,22 @@
+#Calling Powershell as Admin and setting Execution Policy to Bypass to avoid Cannot run Scripts error
+([switch]$Elevated)
+function CheckAdmin {
+    $currentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
+    $currentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
+}
+if ((CheckAdmin) -eq $false) {
+    if ($elevated) {
+        # could not elevate, quit
+    }
+    else {
+        Start-Process powershell.exe -Verb RunAs -ArgumentList ('-noprofile -ExecutionPolicy Bypass -file "{0}" -elevated' -f ($myinvocation.MyCommand.Definition))
+    }
+    Exit
+}
+
 # Rename Title Window
 $host.ui.RawUI.WindowTitle = "Clean Browser Temp Files"
+
 Function Cleanup {
     # Set Date for Log
     $LogDate = Get-Date -format "MM-d-yy-HHmm"
@@ -17,19 +34,19 @@ Function Cleanup {
 
     Start-Transcript -Path C:\Windows\Temp\$LogDate.log
 
-    Write-Host -ForegroundColor Green "Getting the list of Users"
+    Write-Host -ForegroundColor Green "Getting the list of Users1`n"
     # Write Information to the screen
     Write-Host -ForegroundColor Yellow "Exporting the list of Users to $env:USERPROFILE\users.csv`n"
     # List the users in c:\users and export to the local profile for calling later
     Get-ChildItem C:\Users | Select-Object Name | Export-Csv -Path $env:USERPROFILE\users.csv -NoTypeInformation
     $list = Test-Path $env:USERPROFILE\users.csv
 
-    Write-Host -ForegroundColor Green "Beginning Script..."
+    Write-Host -ForegroundColor Green "Beginning Script...`n"
 
     if ($list) {
 
         # Clear Firefox Cache
-        Write-Host -ForegroundColor Green "Clearing Firefox Cache"
+        Write-Host -ForegroundColor Green "Clearing Firefox Cache`n"
         Import-CSV -Path $env:USERPROFILE\users.csv -Header Name | ForEach-Object {
             Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\cache\*" -Recurse -Force -EA SilentlyContinue -Verbose
             Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Mozilla\Firefox\Profiles\*.default\cache\*.*" -Recurse -Force -EA SilentlyContinue -Verbose
@@ -42,7 +59,7 @@ Function Cleanup {
         Write-Host -ForegroundColor Yellow "Done...`n"
 
         # Clear Google Chrome
-        Write-Host -ForegroundColor Green "Clearing Google Chrome Cache"
+        Write-Host -ForegroundColor Green "Clearing Google Chrome Cache`n"
         Import-CSV -Path $env:USERPROFILE\users.csv -Header Name | ForEach-Object {
             Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Google\Chrome\User Data\Default\Cache\*" -Recurse -Force -EA SilentlyContinue -Verbose
             Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Google\Chrome\User Data\Default\Cache2\entries\*" -Recurse -Force -EA SilentlyContinue -Verbose
@@ -56,7 +73,7 @@ Function Cleanup {
         Write-Host -ForegroundColor Yellow "Done...`n"
 
         # Clear Internet Explorer
-        Write-Host -ForegroundColor Yellow "Clearing Internet Explorer Cache"
+        Write-Host -ForegroundColor Yellow "Clearing Internet Explorer Cache`n"
         Import-CSV -Path $env:USERPROFILE\users.csv | ForEach-Object {
             Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Microsoft\Windows\Temporary Internet Files\*" -Recurse -Force -EA SilentlyContinue -Verbose
             Remove-Item -path "C:\Users\$($_.Name)\AppData\Local\Microsoft\Windows\WER\*" -Recurse -Force -EA SilentlyContinue -Verbose
@@ -66,7 +83,7 @@ Function Cleanup {
         Write-Host -ForegroundColor Yellow "Done...`n"
 
         # Clear Opera & Chromium
-        Write-Host -ForegroundColor Yellow "Clearing Opera & Chromium Cache"
+        Write-Host -ForegroundColor Yellow "Clearing Opera & Chromium Cache`n"
         Import-CSV -Path $env:USERPROFILE\users.csv -Header Name | ForEach-Object {
             Remove-Item -Path "C:\Users\$($_.Name)\AppData\Local\Chromium\User Data\Default\Cache\*" -Recurse -Force -EA SilentlyContinue -Verbose
             Remove-Item -Path "C:\Users\$($_.Name)\AppData\Local\Chromium\User Data\Default\GPUCache\*" -Recurse -Force -EA SilentlyContinue -Verbose
@@ -75,24 +92,35 @@ Function Cleanup {
             Remove-Item -Path "C:\Users\$($_.Name)\AppData\Local\Chromium\User Data\Default\Application Cache" -Recurse -Force -EA SilentlyContinue -Verbose
             Remove-Item -Path "C:\Users\$($_.Name)\AppData\Local\Opera Software\Opera Stable\Cache\*" -Recurse -Force -EA SilentlyContinue -Verbose
         }
-        Write-Host -ForegroundColor Yellow "Done..."
+        Write-Host -ForegroundColor Yellow "Done...`n"
 
 
         Write-Host -ForegroundColor Green "All Tasks Done!`n`n"
     }
     else {
-        Write-Host -ForegroundColor Yellow "Session Cancelled"
+        Write-Host -ForegroundColor Yellow "Session Cancelled`n"
         Exit
     }
 
     # Empty Recycle Bin
     if ($Cleanbin -eq 'Y') {
+        Write-Host -ForegroundColor Green "Cleaning Recycle Bin`n"
         $ErrorActionPreference = 'SilentlyContinue'
         $RecycleBin = "C:\`$Recycle.Bin"
         $BinFolders = Get-ChildItem $RecycleBin -Directory -Force
 
         Foreach ($Folder in $BinFolders) {
-            Write-Host $Folder -Foreground Yellow -Background Black
+            # Translate the SID to a User Account
+            $objSID = New-Object System.Security.Principal.SecurityIdentifier ($folder)
+            try {
+                $objUser = $objSID.Translate( [System.Security.Principal.NTAccount])
+                Write-Host -Foreground Yellow -Background Black "Cleaning $objUser Recycle Bin"
+            }
+            # If SID cannot be Translated, Throw out the SID instead of error
+            catch {
+                $objUser = $objSID.Value
+                Write-Host -Foreground Yellow -Background Black "$objUser"
+            }
             $Files = @()
 
             if ($PSVersionTable.PSVersion -Like "*2*") {
@@ -112,6 +140,7 @@ Function Cleanup {
             }
             Write-Progress -Activity "Recycle Bin Clean-up" -Status "Complete" -Completed -Id 1
         }
+        Write-Host -ForegroundColor Green "Done`n `n"
     }
 
     # Get Drive size after clean
