@@ -6,6 +6,7 @@ Powershell script to delete cache & cookies in Firefox, Chrome, Chromium, Opera 
 v2.7: 
 * Borrowed Chromium and Opera Cleaning - Credit [Anst-foto](https://github.com/anst-foto/Powershell)
 * Redone Recycle Bin cleaning. Will ask for confirmation at the start of the script then will clean All Users Recycle Bin - Credit [Chris Rakowitz](https://community.spiceworks.com/scripts/show_download/3677-empty-recycle-bins)
+* Translate SID to User account when running the Recycle Bin Cleaning for nicer output. If SID cannot be translated then just show SID
 
 v2.6: 
 * Fixes from Github which were not pulled from Master
