@@ -94,6 +94,14 @@ Function Cleanup {
         }
         Write-Host -ForegroundColor Yellow "Done...`n"
 
+        # Clear Dropbox
+        Write-Host -ForegroundColor Yellow "Clearing Dropbox Cache`n"
+        Import-CSV -Path $env:USERPROFILE\users.csv -Header Name | ForEach-Object {
+            Remove-Item -path "C:\Users\$($_.Name)\Dropbox\.dropbox.cache\*" -Recurse -Force -EA SilentlyContinue -Verbose
+            Remove-Item -path "C:\Users\$($_.Name)\Dropbox*\.dropbox.cache\*" -Recurse -Force -EA SilentlyContinue -Verbose
+        }
+        Write-Host -ForegroundColor Yellow "Done...`n"
+
 
         Write-Host -ForegroundColor Green "All Tasks Done!`n`n"
     }
